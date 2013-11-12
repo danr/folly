@@ -56,7 +56,7 @@ infix  4 !=
 infixr 3 &
 infixr 3 /\
 infixr 2 \/
-infixl 1 ==>
+infixr 1 ==>
 infix  1 <=>
 
 (==>), (&), (/\), (\/), (<=>) :: Folly Formula -> Folly Formula -> Folly Formula
