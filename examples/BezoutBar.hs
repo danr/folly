@@ -57,6 +57,15 @@ decls =
 
     ]
 
+gcd_square = (,) "gcd_square" $
+  forall' $ \ x y ->
+    gcd (x * x) (y * y) %= (gcd x y) * (gcd x y)
+
+gauss_lemma = (,) "gauss_lemma" $
+  forall' $ \ x y z ->
+    x %| y * z /\ coprime x z ==>
+    x %| y
+
 inv_units = (,) "inv_units" $
     forall' $ \ x ->
         x %| one ==>
@@ -68,7 +77,13 @@ regular = (,) "regular" $
         a * u === a * v ==>
         u === v
 
-bezoutmatrix' = (,) "bezoutmatrix'" $
+bezoutmatrix = (,) "bezoutmatrix" $
+    forall' $ \ a b ->
+        exists' $ \ x y a1 b1 ->
+                   x * a1 + y * b1 === one
+                /\ b1 * a === a1 * b
+
+bezoutmatrix_help1 = (,) "bezoutmatrix_help1" $
     forall' $ \ a b ->
         gcd a b != zero ==>
         (exists' $ \ x y a1 b1 g ->
@@ -82,7 +97,7 @@ bezoutmatrix' = (,) "bezoutmatrix'" $
                 /\ a %= gcd a b * a1
             )
 
-bezoutmatrix = (,) "bezoutmatrix" $
+bezoutmatrix_help2 = (,) "bezoutmatrix_help2" $
     forall' $ \ a b ->
         gcd a b != zero ==>
         (exists' $ \ x y a1 b1 ->
@@ -91,38 +106,26 @@ bezoutmatrix = (,) "bezoutmatrix" $
                 /\ b %= gcd a b * b1
                 /\ a %= gcd a b * a1
                 /\ a * x + b * y %= gcd a b
-                {-
-                /\ gcd a b %= gcd a b
-                /\ b %= gcd a b * b1
-                /\ a %= gcd a b * a1
-                -}
             )
 
 
 top = (,) "top" $ forall' $ \ a -> a === a
 
-{-
-    -- ok:
-    , axiom' $ forall' $ \ a b -> Folly.neg (a %| b) <=> (forall' $ \ x -> b != x * a)
-    -}
-{-
-    -- ok:
-    , axiom' $ forall' $ \ x -> x %| x
-    -- ok:
-    , axiom' $ forall' $ \ x y z -> x %| y /\ y %| z ==> x %| z
-    -- ok:
-    , axiom' $ forall' $ \ a b c -> a %| b /\ a %| c ==> a %| (b + c)
-    -- counterexample found, ok:
---    , conjecture'  $ forall' $ \ a b -> a %| b ==> b %| a
---    -}
+neg_divides = (,) "neg_divides" $
+    forall' $ \ a b -> Folly.neg (a %| b) <=> (forall' $ \ x -> b != x * a)
 
-{-
-    -- ok:
-    , axiom' $ forall' $ associativeOver (%=) gcd
-    -- ok:
-    , axiom' $ forall' $ commutativeOver (%=) gcd
-    -}
+div_refl = (,) "div_refl" $ forall' $ \ x -> x %| x
 
+div_trans = (,) "div_trans" $ forall' $ \ x y z -> x %| y /\ y %| z ==> x %| z
+
+div_plus = (,) "div_plus" $ forall' $ \ a b c -> a %| b /\ a %| c ==> a %| (b + c)
+
+-- countersatisfiable:
+div_sym = (,) "div_sym" $ forall' $ \ a b -> a %| b ==> b %| a
+
+gcd_assoc = ("gcd_assoc",forall' $ associativeOver (%=) gcd)
+
+gcd_comm = ("gcd_comm",forall' $ commutativeOver (%=) gcd)
 
 helmer = (,) "helmer" $
     forall' $ \ a b -> a != zero ==>
@@ -138,12 +141,6 @@ kaplansky = (,) "kaplansky" $
     forall' $ \ a b c ->
         gcd a (gcd b c) %| one ==>
         (exists' $ \ p q -> gcd (p * a) (p * b + q * c) %| one)
-
-
-lorenzini = (,) "lorenzini" $
-    forall' $ \ a b c ->
-         (exists' $ \ x y z -> a * x + b * y + c * z %= one) ==>
-         (exists' $ \ p q x' y' -> p * a * x' + (p * b + q * c) * y' %= one)
 
 lombardi = (,) "lombardi" $
     forall' $ \ a b c ->
@@ -165,18 +162,29 @@ main = do
     tests =
         [ cyril ===> lombardi_cyril
         , cyril ===> kaplansky
-        , cyril ===> helmer
         , helmer ===> cyril
         , kaplansky ===> lombardi_cyril
         , lombardi_cyril ===> kaplansky
         , top ===> regular
-        , top ===> bezoutmatrix
-        , regular ===> bezoutmatrix
-        , top ===> bezoutmatrix'
-        , regular ===> bezoutmatrix'
+        , top ===> bezoutmatrix       -- X
+        , regular ===> bezoutmatrix   -- X
         , top ===> inv_units
+
+        , top ===> neg_divides
+        , top ===> div_refl
+        , top ===> div_trans
+        , top ===> div_plus
+
+        , top ===> gcd_assoc
+        , top ===> gcd_comm
+        , top ===> gcd_square
+        , top ===> gauss_lemma        -- X
+        , gauss_lemma ===> gcd_square -- X
+
+        -- "open" since this morning:
+        , cyril ===> helmer
         -- open problems:
-        , top ===> lorenzini
+        , top ===> kaplansky
         , top ===> lombardi
         , top ===> lombardi_cyril
         ]
