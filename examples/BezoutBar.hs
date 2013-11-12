@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Main where
 
 import Folly.DSL hiding (neg)
@@ -5,6 +6,7 @@ import qualified Folly.DSL as Folly
 import Folly.TPTP
 
 import Control.Monad
+import Data.List
 
 import Prelude hiding (succ,(+),(-),pred,(*),gcd)
 
@@ -57,6 +59,8 @@ decls =
 
     ]
 
+neg_involutive = (,) "neg_involutive" $ forall' $ \x -> neg (neg x) === x
+
 gcd_square = (,) "gcd_square" $
   forall' $ \ x y ->
     gcd (x * x) (y * y) %= (gcd x y) * (gcd x y)
@@ -79,37 +83,10 @@ regular = (,) "regular" $
 
 bezoutmatrix = (,) "bezoutmatrix" $
     forall' $ \ a b ->
-        exists' $ \ x y a1 b1 ->
-                   x * a1 + y * b1 === one
-                /\ b1 * a === a1 * b
-
-bezoutmatrix_help1 = (,) "bezoutmatrix_help1" $
-    forall' $ \ a b ->
-        gcd a b != zero ==>
-        (exists' $ \ x y a1 b1 g ->
-                   x * a1 + y * b1 === one
-                /\ b1 * a === a1 * b
-                /\ b === g * b1
-                /\ a === g * a1
-                /\ a * x + b * y === g
-                /\ g %= gcd a b
-                /\ b %= gcd a b * b1
-                /\ a %= gcd a b * a1
-            )
-
-bezoutmatrix_help2 = (,) "bezoutmatrix_help2" $
-    forall' $ \ a b ->
         gcd a b != zero ==>
         (exists' $ \ x y a1 b1 ->
-                   x * a1 + y * b1 %= one
-                /\ b1 * a %= a1 * b
-                /\ b %= gcd a b * b1
-                /\ a %= gcd a b * a1
-                /\ a * x + b * y %= gcd a b
-            )
-
-
-top = (,) "top" $ forall' $ \ a -> a === a
+                   x * a1 + y * b1 === one
+                /\ b1 * a === a1 * b)
 
 neg_divides = (,) "neg_divides" $
     forall' $ \ a b -> Folly.neg (a %| b) <=> (forall' $ \ x -> b != x * a)
@@ -155,39 +132,92 @@ lombardi_cyril = (,) "lombardi_cyril" $
 
 main :: IO ()
 main = do
-    forM_ tests $ \ ((ax_name,ax),(conj_name,conj)) ->
-        writeTPTP (ax_name ++ "_implies_" ++ conj_name)
-            (decls ++ [axiom' ax,conjecture' conj])
+    forM_ tests $ \ (axioms,(conj_name,conj)) ->
+        let (names,axs) = unzip axioms
+        in  writeTPTP ((case names of
+                            [] -> ""
+                            [x] -> x ++ "_implies_"
+                            xs  -> "lemmas_")
+                            ++ conj_name)
+               (decls ++ map axiom' axs ++ [conjecture' conj])
   where
     tests =
         [ cyril ===> lombardi_cyril
         , cyril ===> kaplansky
         , helmer ===> cyril
+        , kaplansky ===> cyril
         , kaplansky ===> lombardi_cyril
         , lombardi_cyril ===> kaplansky
-        , top ===> regular
-        , top ===> bezoutmatrix       -- X
+        , only regular
+        , only bezoutmatrix       -- X
         , regular ===> bezoutmatrix   -- X
-        , top ===> inv_units
+        , only inv_units
 
-        , top ===> neg_divides
-        , top ===> div_refl
-        , top ===> div_trans
-        , top ===> div_plus
+        , lemmas =&=> bezoutmatrix
 
-        , top ===> gcd_assoc
-        , top ===> gcd_comm
-        , top ===> gcd_square
-        , top ===> gauss_lemma        -- X
+        , only neg_divides
+        , only div_refl
+        , only div_trans
+        , only div_plus
+        , only div_sym            -- countersatisfiable
+
+        , only neg_involutive
+
+        , only gcd_assoc
+        , only gcd_comm
+        , only gcd_square
+        , only gauss_lemma        -- X
         , gauss_lemma ===> gcd_square -- X
 
         -- "open" since this morning:
         , cyril ===> helmer
         -- open problems:
-        , top ===> kaplansky
-        , top ===> lombardi
-        , top ===> lombardi_cyril
+        , only kaplansky
+        , only lombardi
+        , only lombardi_cyril
+        , lemmas =&=> kaplansky
+        , lemmas =&=> lombardi
+        , lemmas =&=> lombardi_cyril
         ]
 
-    (===>) = (,)
+    only    x = ([],x)
+    x  ===> y = ([x],y)
+    xs =&=> y = (xs,y)
+    lemmas =
+        [ neg_divides
+        , div_refl
+        , div_trans
+        , div_plus
+        , gcd_assoc
+        , gcd_comm
+        , gauss_lemma
+        , gcd_square
+        ]
+
+
+
+bezoutmatrix_help1 = (,) "bezoutmatrix_help1" $
+    forall' $ \ a b ->
+        gcd a b != zero ==>
+        (exists' $ \ x y a1 b1 g ->
+                   x * a1 + y * b1 === one
+                /\ b1 * a === a1 * b
+                /\ b === g * b1
+                /\ a === g * a1
+                /\ a * x + b * y === g
+                /\ g %= gcd a b
+                /\ b %= gcd a b * b1
+                /\ a %= gcd a b * a1
+            )
+
+bezoutmatrix_help2 = (,) "bezoutmatrix_help2" $
+    forall' $ \ a b ->
+        gcd a b != zero ==>
+        (exists' $ \ x y a1 b1 ->
+                   x * a1 + y * b1 %= one
+                /\ b1 * a %= a1 * b
+                /\ b %= gcd a b * b1
+                /\ a %= gcd a b * a1
+                /\ a * x + b * y %= gcd a b
+            )
 
